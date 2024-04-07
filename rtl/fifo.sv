@@ -16,6 +16,12 @@ module fifo #(
 	output logic                            full      ,
 	output logic                            empty
 );
+	// Assertions
+	initial begin
+		assert (is_pow2(FIFO_DEPTH));
+			else $error("FIFO_DEPTH is not a power of 2!");
+	end
+
 	// Constants
 	localparam int PTR_WIDTH      = $clog2(FIFO_DEPTH)  ;
 	localparam int FILL_LVL_WIDTH = $clog2(FIFO_DEPTH+1);
@@ -92,6 +98,12 @@ module dram #(
 	output logic [       DATA_WIDTH-1:0] read_data ,
 	input  logic [$clog2(MEM_DEPTH)-1:0] read_addr 
 );
+	// Assertions
+	initial begin
+		assert (is_pow2(MEM_DEPTH));
+			else $error("MEM_DEPTH is not a power of 2!");
+	end
+	
 	// Declerations
 
 	logic [DATA_WIDTH-1:0] reg_array[MEM_DEPTH];
@@ -112,3 +124,9 @@ module dram #(
 	assign read_data = reg_array[read_addr];
 
 endmodule : dram
+
+
+
+function bool is_pow2(int num);
+	return num == (2 ** $clog2(num));
+endfunction : is_pow2
