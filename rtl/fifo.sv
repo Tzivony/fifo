@@ -1,3 +1,6 @@
+import generic_func_pack::*;
+
+
 module fifo #(
 	parameter int DATA_WIDTH,
 	parameter int FIFO_DEPTH // Must be a power of 2
@@ -6,11 +9,9 @@ module fifo #(
 	input  logic                            clk       , // Clock
 	input  logic                            rst_n     , // Asynchronous reset active low
 	// Write Interface
-	input  logic                            write     , // Write command will be ignored when full is asserted
-	input  logic [          DATA_WIDTH-1:0] write_data,
+	dvr_if.master                           write     ,
 	// Read Interface
-	input  logic                            read      , // Read command will be ignored when empty is asserted
-	output logic [          DATA_WIDTH-1:0] read_data ,
+	dvr_if.slave                            read      ,
 	// Indications
 	output logic [$clog2(FIFO_DEPTH+1)-1:0] fill_level, // Ranges from 0 up to FIFO_DEPTH including! (thus the +1)
 	output logic                            full      ,
@@ -18,8 +19,8 @@ module fifo #(
 );
 	// Assertions
 	initial begin
-		assert (is_pow2(FIFO_DEPTH));
-			else $error("FIFO_DEPTH is not a power of 2!");
+		if (!is_pow2(FIFO_DEPTH))
+			$error("FIFO_DEPTH is not a power of 2!");
 	end
 
 	// Constants
@@ -39,22 +40,22 @@ module fifo #(
 
 	// Logic
 
-	dram #(
+	sdp_ram #(
 		.DATA_WIDTH(DATA_WIDTH),
 		.MEM_DEPTH (FIFO_DEPTH)
-	) i_dram (
+	) i_sdp_ram (
 		.clk       (clk       ),
 		.rst_n     (rst_n     ),
 		.write     (write_cmd ),
-		.write_data(write_data),
+		.write_data(write.data),
 		.write_addr(write_ptr ),
-		.read_data (read_data ),
+		.read_data (read.data ),
 		.read_addr (read_ptr  )
 	);
 
-	// Enforce write/read pointers
-	assign write_cmd = write & ~full;
-	assign read_cmd  = read & ~empty;
+	// write/read commands are valid for transactions only
+	assign write_cmd = write.vld & write.rdy; // write.vld is the 'write' request
+	assign read_cmd  = read.rdy & read.vld; // read.rdy is the 'read' request
 
 	always_ff @(posedge clk or negedge rst_n) begin : proc_ptr_cntrs
 		if(~rst_n) begin
@@ -80,53 +81,8 @@ module fifo #(
 	assign full  = (fill_level == FIFO_DEPTH);
 	assign empty = (fill_level == 0);
 
+	// vld/rdy equivalent
+	assign write.rdy = ~full;
+	assign read.vld  = ~empty;
+
 endmodule : fifo
-
-
-
-module dram #(
-	parameter int DATA_WIDTH,
-	parameter int MEM_DEPTH // Must be a power of 2
-) (
-	input  logic                         clk       , // Clock
-	input  logic                         rst_n     , // Asynchronous reset active low
-	// Write Interface
-	input  logic                         write     ,
-	input  logic [       DATA_WIDTH-1:0] write_data,
-	input  logic [$clog2(MEM_DEPTH)-1:0] write_addr,
-	// Read Interface
-	output logic [       DATA_WIDTH-1:0] read_data ,
-	input  logic [$clog2(MEM_DEPTH)-1:0] read_addr 
-);
-	// Assertions
-	initial begin
-		assert (is_pow2(MEM_DEPTH));
-			else $error("MEM_DEPTH is not a power of 2!");
-	end
-	
-	// Declerations
-
-	logic [DATA_WIDTH-1:0] reg_array[MEM_DEPTH];
-
-
-	// Logic
-
-	always_ff @(posedge clk or negedge rst_n) begin : proc_reg_array
-		if(~rst_n) begin
-			reg_array <= '{MEM_DEPTH{DATA_WIDTH'(0)}};
-		end else begin
-			if (write) begin
-				reg_array[write_addr] <= write_data;
-			end
-		end
-	end
-
-	assign read_data = reg_array[read_addr];
-
-endmodule : dram
-
-
-
-function bool is_pow2(int num);
-	return num == (2 ** $clog2(num));
-endfunction : is_pow2

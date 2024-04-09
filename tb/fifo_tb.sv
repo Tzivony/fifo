@@ -4,15 +4,13 @@ module fifo_tb ();
 	localparam int FIFO_DEPTH = 2;
 
 	// Declerations
-	logic                            clk        = 1'b0        ;
-	logic                            rst_n      = 1'b1        ;
-	logic                            write      = 1'b0        ;
-	logic [          DATA_WIDTH-1:0] write_data = '{default:1};
-	logic                            read       = 1'b0        ;
-	logic [          DATA_WIDTH-1:0] read_data                ;
-	logic [$clog2(FIFO_DEPTH+1)-1:0] fill_level               ;
-	logic                            full                     ;
-	logic                            empty                    ;
+	logic clk   = 1'b0;
+	logic rst_n = 1'b1;
+	dvr_if #(.DATA_WIDTH(DATA_WIDTH)) write ();
+	dvr_if #(.DATA_WIDTH(DATA_WIDTH)) read  ();
+	logic [$clog2(FIFO_DEPTH+1)-1:0] fill_level;
+	logic                            full      ;
+	logic                            empty     ;
 
 	// DUT
 	fifo #(
@@ -22,25 +20,31 @@ module fifo_tb ();
 		.clk       (clk       ),
 		.rst_n     (rst_n     ),
 		.write     (write     ),
-		.write_data(write_data),
 		.read      (read      ),
-		.read_data (read_data ),
 		.fill_level(fill_level),
 		.full      (full      ),
 		.empty     (empty     )
 	);
 
+
 	// Stimulus
 	initial begin
+		write.data = '{default:1};
+		write.vld = 1'b0;
+		read.rdy = 1'b0;
+
 		@(negedge rst_n);
 		@(posedge clk);
 
-		write <= 1'b1;
+		write.vld <= 1'b1;
 		repeat (2) @(posedge clk);
-		write_data <= 1;
-		read <= 1'b1;
+		write.data <= 1;
+		read.rdy <= 1'b1;
 		@(posedge clk);
-		write_data <= 2;
+		write.data <= 2;
+
+		repeat (3) @(posedge clk);
+		write.vld <= 1'b0;
 
 		#10000;
 	end
