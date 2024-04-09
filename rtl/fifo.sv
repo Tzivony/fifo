@@ -1,17 +1,14 @@
 import generic_func_pack::*;
 
-
-module fifo #(
-	parameter int DATA_WIDTH,
-	parameter int FIFO_DEPTH // Must be a power of 2
-) (
+// FIFO_DEPTH must be a power of 2
+module fifo #(parameter int FIFO_DEPTH) (
 	// General
 	input  logic                            clk       , // Clock
 	input  logic                            rst_n     , // Asynchronous reset active low
 	// Write Interface
-	dvr_if.master                           write     ,
+	avalon_st_if.master                     write     ,
 	// Read Interface
-	dvr_if.slave                            read      ,
+	avalon_st_if.slave                      read      ,
 	// Indications
 	output logic [$clog2(FIFO_DEPTH+1)-1:0] fill_level, // Ranges from 0 up to FIFO_DEPTH including! (thus the +1)
 	output logic                            full      ,
@@ -24,10 +21,15 @@ module fifo #(
 	end
 
 	// Constants
-	localparam int PTR_WIDTH      = $clog2(FIFO_DEPTH)  ;
-	localparam int FILL_LVL_WIDTH = $clog2(FIFO_DEPTH+1);
+	localparam int FIFO_DATA_WIDTH = write.DATA_WIDTH + write.META_WIDTH; // Note we include both original, and meta data
+	localparam int PTR_WIDTH       = $clog2(FIFO_DEPTH)                 ;
+	localparam int FILL_LVL_WIDTH  = $clog2(FIFO_DEPTH+1)               ;
 
 	// Declerations
+
+	// Data saved in fifo (original data + interface meta-data)
+	logic [(FIFO_DATA_WIDTH)-1:0] write_data;
+	logic [(FIFO_DATA_WIDTH)-1:0] read_data ;
 
 	// Enforced write/read commands
 	logic write_cmd;
@@ -41,17 +43,21 @@ module fifo #(
 	// Logic
 
 	sdp_ram #(
-		.DATA_WIDTH(DATA_WIDTH),
-		.MEM_DEPTH (FIFO_DEPTH)
+		.DATA_WIDTH(FIFO_DATA_WIDTH),
+		.MEM_DEPTH (FIFO_DEPTH     )
 	) i_sdp_ram (
 		.clk       (clk       ),
 		.rst_n     (rst_n     ),
 		.write     (write_cmd ),
-		.write_data(write.data),
+		.write_data(write_data),
 		.write_addr(write_ptr ),
-		.read_data (read.data ),
+		.read_data (read_data ),
 		.read_addr (read_ptr  )
 	);
+
+	// Concatenate / de-concatenate write/read data
+	assign write_data = {write.data, write.empty, write.sop, write.eop};
+	assign {read.data, read.empty, read.sop, read.eop} = read_data;
 
 	// write/read commands are valid for transactions only
 	assign write_cmd = write.vld & write.rdy; // write.vld is the 'write' request
@@ -59,8 +65,8 @@ module fifo #(
 
 	always_ff @(posedge clk or negedge rst_n) begin : proc_ptr_cntrs
 		if(~rst_n) begin
-			write_ptr <= {DATA_WIDTH{1'b0}};
-			read_ptr  <= {DATA_WIDTH{1'b0}};
+			write_ptr <= {PTR_WIDTH{1'b0}};
+			read_ptr  <= {PTR_WIDTH{1'b0}};
 		end else begin
 			// This style of code relies on the natural wrap-around of counters with power-of-2 count size
 			write_ptr <= write_ptr + write_cmd;

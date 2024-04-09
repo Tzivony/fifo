@@ -1,20 +1,19 @@
 module fifo_tb ();
 	// Constants
-	localparam int DATA_WIDTH = 8;
+	localparam int DATA_WIDTH_IN_BYTES = 1;
 	localparam int FIFO_DEPTH = 2;
 
 	// Declerations
 	logic clk   = 1'b0;
 	logic rst_n = 1'b1;
-	dvr_if #(.DATA_WIDTH(DATA_WIDTH)) write ();
-	dvr_if #(.DATA_WIDTH(DATA_WIDTH)) read  ();
+	avalon_st_if #(.DATA_WIDTH_IN_BYTES(DATA_WIDTH_IN_BYTES)) write ();
+	avalon_st_if #(.DATA_WIDTH_IN_BYTES(DATA_WIDTH_IN_BYTES)) read  ();
 	logic [$clog2(FIFO_DEPTH+1)-1:0] fill_level;
 	logic                            full      ;
 	logic                            empty     ;
 
 	// DUT
 	fifo #(
-		.DATA_WIDTH(DATA_WIDTH),
 		.FIFO_DEPTH(FIFO_DEPTH)
 	) i_fifo (
 		.clk       (clk       ),
@@ -31,6 +30,9 @@ module fifo_tb ();
 	initial begin
 		write.data = '{default:1};
 		write.vld = 1'b0;
+		write.sop = 1'b0;
+		write.eop = 1'b0;
+		write.empty = '{default:0};
 		read.rdy = 1'b0;
 
 		@(negedge rst_n);
