@@ -1,7 +1,7 @@
 module fifo_tb ();
 	// Constants
 	localparam int DATA_WIDTH_IN_BYTES = 1;
-	localparam int FIFO_DEPTH = 2;
+	localparam int FIFO_DEPTH = 4;
 
 	// Declerations
 	logic clk   = 1'b0;
@@ -14,7 +14,8 @@ module fifo_tb ();
 
 	// DUT
 	fifo #(
-		.FIFO_DEPTH(FIFO_DEPTH)
+		.FIFO_DEPTH(FIFO_DEPTH),
+		.STORE_FORWARD(1'b1)
 	) i_fifo (
 		.clk       (clk       ),
 		.rst_n     (rst_n     ),
@@ -27,6 +28,7 @@ module fifo_tb ();
 
 
 	// Stimulus
+
 	initial begin
 		write.data = '{default:1};
 		write.vld = 1'b0;
@@ -35,10 +37,9 @@ module fifo_tb ();
 		write.empty = '{default:0};
 		read.rdy = 1'b0;
 
-		@(negedge rst_n);
-		@(posedge clk);
+		@(posedge rst_n);
 
-		write.vld <= 1'b1;
+		write.vld <= 1'b1; // Note that this creates an invalid interface (valid out of packet)
 		repeat (2) @(posedge clk);
 		write.data <= 1;
 		read.rdy <= 1'b1;
@@ -51,10 +52,25 @@ module fifo_tb ();
 		#10000;
 	end
 
-	// Clock
+	initial begin
+		@(posedge rst_n);
+		@(posedge clk);
+
+		write.sop = 1'b1;
+		@(posedge clk);
+		write.sop = 1'b0;
+
+		@(posedge clk);
+
+		write.eop = 1'b1;
+		@(posedge clk);
+		write.eop = 1'b0;
+	end
+
+
+	// Clock & Reset
 	always #0.5 clk = ~clk;
 
-	// Reset
 	initial begin
 		@(posedge clk);
 		rst_n <= 1'b0;
