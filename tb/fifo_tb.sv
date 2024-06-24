@@ -1,10 +1,16 @@
 module fifo_tb ();
+	// Imports
+	import fifo_pack::*;
+
 	// Constants
-	localparam int DATA_WIDTH_IN_BYTES = 1;
-	localparam int FIFO_DEPTH = 2;
+	localparam int DATA_WIDTH_IN_BYTES = 1   ;
+	localparam int FIFO_DEPTH          = 2   ;
+	localparam bit FL_MODE             = CALC;
+	localparam bit STORE_FORWARD       = 0   ;
+	localparam bit IN_ERROR            = 0   ;
 
 	// Declerations
-	logic clk   = 1'b0;
+	logic clk   = 1'b1;
 	logic rst_n = 1'b1;
 	avalon_st_if #(.DATA_WIDTH_IN_BYTES(DATA_WIDTH_IN_BYTES)) write ();
 	avalon_st_if #(.DATA_WIDTH_IN_BYTES(DATA_WIDTH_IN_BYTES)) read  ();
@@ -14,7 +20,10 @@ module fifo_tb ();
 
 	// DUT
 	fifo #(
-		.FIFO_DEPTH(FIFO_DEPTH)
+		.FIFO_DEPTH(FIFO_DEPTH),
+		.FL_MODE(FL_MODE),
+		.STORE_FORWARD(STORE_FORWARD),
+		.IN_ERROR(IN_ERROR)
 	) i_fifo (
 		.clk       (clk       ),
 		.rst_n     (rst_n     ),

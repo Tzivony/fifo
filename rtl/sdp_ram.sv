@@ -22,8 +22,10 @@ module sdp_ram #(
 );
 	// Assertions
 	initial begin
-		if (!is_pow2(MEM_DEPTH))
+		if (!is_pow2(MEM_DEPTH)) begin
 			$error("MEM_DEPTH is not a power of 2!");
+			$fatal();
+		end
 	end
 
 	// Declerations
